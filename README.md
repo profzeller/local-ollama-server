@@ -2,146 +2,120 @@
 
 Dedicated LLM inference server for text generation on a local GPU.
 
-Optimized for 16GB VRAM GPUs (RTX 4080, laptop 4090, etc.) to run large language models for wellness content generation.
-
-## Requirements
-
-- NVIDIA GPU with 16GB VRAM (RTX 4080, laptop 4090, etc.)
-- Ubuntu Server 22.04+ (or any Linux with Docker)
-- Docker & Docker Compose
-- NVIDIA Driver 525+
-- NVIDIA Container Toolkit
+Optimized for 16GB VRAM GPUs (RTX 4080, laptop 4090, etc.) to run large language models.
 
 ## Quick Start
 
-### 1. Install NVIDIA Container Toolkit
-
 ```bash
-# Add NVIDIA package repository
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-
-# Install toolkit
-sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
-
-# Configure Docker runtime
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-
-# Verify GPU is accessible
-docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
-```
-
-### 2. Clone and Start
-
-```bash
+# Clone and configure
 git clone https://github.com/profzeller/local-ollama-server.git
 cd local-ollama-server
+cp .env.example .env
+
+# Edit .env to customize settings (optional)
+nano .env
+
+# Start the server
 docker compose up -d
+
+# Pull a model
+docker exec ollama ollama pull mistral:7b
 ```
 
-### 3. Pull a Model
+## Configuration
 
-**Recommended for 16GB VRAM (wellness content generation):**
+All settings are in `.env`:
 
 ```bash
-# Qwen 2.5 14B - Best balance of quality and speed (~10GB VRAM)
-docker exec ollama ollama pull qwen2.5:14b
+# Default model to use
+OLLAMA_DEFAULT_MODEL=mistral:7b
 
-# Alternative: Llama 3.1 8B - Faster, still good quality (~8GB VRAM)
-docker exec ollama ollama pull llama3.1:8b
+# Performance settings
+OLLAMA_NUM_PARALLEL=2
+OLLAMA_MAX_LOADED_MODELS=1
+OLLAMA_KEEP_ALIVE=300
 
-# Alternative: DeepSeek R1 14B - Good reasoning (~10GB VRAM)
-docker exec ollama ollama pull deepseek-r1:14b
+# Network
+OLLAMA_HOST=0.0.0.0
+OLLAMA_PORT=11434
 ```
 
-**Other useful models for 16GB:**
+## Recommended Models for 16GB VRAM
+
+| Model | Size | Speed | Notes |
+|-------|------|-------|-------|
+| `mistral:7b` | 7B | Fast | Great all-around |
+| `qwen2.5:7b` | 7B | Fast | Multilingual |
+| `llama3.2:3b` | 3B | Very fast | Smaller but capable |
+| `phi3:mini` | 3.8B | Very fast | Efficient |
+| `gemma2:9b` | 9B | Medium | Good quality |
+
+### For 24GB+ VRAM
+
+| Model | Size | Notes |
+|-------|------|-------|
+| `qwen2.5:14b` | 14B | Excellent quality |
+| `llama3.1:8b` | 8B | Good balance |
+| `deepseek-r1:14b` | 14B | Great reasoning |
+
+## Pulling Models
 
 ```bash
-# For coding tasks
-docker exec ollama ollama pull qwen2.5-coder:7b
+# Pull a model
+docker exec ollama ollama pull mistral:7b
 
-# Smaller/faster options
-docker exec ollama ollama pull llama3.2:3b
-docker exec ollama ollama pull phi3:3.8b
+# List installed models
+docker exec ollama ollama list
 
-# Larger (uses most of 16GB)
-docker exec ollama ollama pull qwen2.5:14b-q8_0
+# Remove a model
+docker exec ollama ollama rm <model-name>
 ```
-
-## Model Recommendations
-
-| Model | VRAM | Best For |
-|-------|------|----------|
-| `qwen2.5:14b` | ~10GB | **Recommended** - Content writing, creative tasks |
-| `llama3.1:8b` | ~8GB | Fast general purpose, good quality |
-| `deepseek-r1:14b` | ~10GB | Reasoning, analysis, research summaries |
-| `qwen2.5-coder:7b` | ~6GB | Code generation, technical content |
-| `llama3.2:3b` | ~3GB | Quick drafts, simple tasks |
 
 ## API Usage
-
-### Generate Text
-
-```bash
-curl http://localhost:11434/api/generate -d '{
-  "model": "qwen2.5:14b",
-  "prompt": "Write a wellness tip about morning routines",
-  "stream": false
-}'
-```
 
 ### Chat Completion
 
 ```bash
 curl http://localhost:11434/api/chat -d '{
-  "model": "qwen2.5:14b",
+  "model": "mistral:7b",
   "messages": [
-    {"role": "system", "content": "You are a wellness content expert."},
-    {"role": "user", "content": "Write 3 benefits of meditation"}
+    {"role": "user", "content": "Hello!"}
   ]
 }'
 ```
 
 ### OpenAI-Compatible API
 
-Ollama supports the OpenAI API format:
-
 ```bash
 curl http://localhost:11434/v1/chat/completions -d '{
-  "model": "qwen2.5:14b",
+  "model": "mistral:7b",
   "messages": [{"role": "user", "content": "Hello!"}]
 }'
 ```
 
-### Python Example
+### Python
 
 ```python
 import requests
 
 response = requests.post("http://localhost:11434/api/generate", json={
-    "model": "qwen2.5:14b",
-    "prompt": "Write a short wellness tip about hydration",
+    "model": "mistral:7b",
+    "prompt": "Write a wellness tip",
     "stream": False
 })
 print(response.json()["response"])
 ```
 
-## Network Configuration
+## Configuration Reference
 
-By default, Ollama binds to all interfaces. Access from other machines:
-
-```
-http://<server-ip>:11434
-```
-
-### Firewall
-
-```bash
-sudo ufw allow 11434
-```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OLLAMA_DEFAULT_MODEL` | Model to pull on setup | mistral:7b |
+| `OLLAMA_NUM_PARALLEL` | Concurrent requests | 2 |
+| `OLLAMA_MAX_LOADED_MODELS` | Models in memory | 1 |
+| `OLLAMA_KEEP_ALIVE` | Keep model loaded (sec) | 300 |
+| `OLLAMA_HOST` | Bind address | 0.0.0.0 |
+| `OLLAMA_PORT` | Port | 11434 |
 
 ## Management
 
@@ -151,9 +125,6 @@ docker compose logs -f
 
 # List models
 docker exec ollama ollama list
-
-# Remove a model
-docker exec ollama ollama rm <model-name>
 
 # Restart
 docker compose restart
@@ -165,22 +136,6 @@ docker compose down
 docker compose pull
 docker compose up -d
 ```
-
-## Performance Tuning
-
-### For 16GB VRAM
-
-The default config is optimized for 16GB. Key settings in `docker-compose.yml`:
-
-- `OLLAMA_NUM_PARALLEL=2` - Handle 2 concurrent requests
-- `OLLAMA_MAX_LOADED_MODELS=1` - Keep 1 model in VRAM (important for 16GB)
-
-### Memory Tips
-
-- Stick to models under 14B parameters
-- Use quantized versions when available (q4_K_M, q8_0)
-- Only keep one model loaded at a time
-- Restart if VRAM gets fragmented: `docker compose restart`
 
 ## Troubleshooting
 
@@ -197,14 +152,29 @@ docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
 ### Out of memory
 
 - Use a smaller model or quantized version
-- Check VRAM usage: `nvidia-smi`
+- Check VRAM: `nvidia-smi`
 - Restart to clear VRAM: `docker compose restart`
 
-### Slow inference
+## Port
 
-- Ensure model fits in VRAM (not swapping to RAM)
-- Use quantized versions: `qwen2.5:32b-q4_K_M`
+- `11434` - Ollama API
+
+## Files
+
+```
+local-ollama-server/
+├── docker-compose.yml    # Main configuration
+├── .env.example          # Configuration template
+├── .env                  # Your config (not in git)
+└── README.md
+```
+
+## Requirements
+
+- NVIDIA GPU with 16GB+ VRAM
+- NVIDIA Driver 525+
+- Docker with NVIDIA Container Toolkit
 
 ## License
 
-MIT License - Use freely for personal and commercial projects.
+MIT
