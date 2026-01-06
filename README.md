@@ -1,5 +1,7 @@
 # Local Ollama Server
 
+> Part of the [P16 GPU Server](https://github.com/profzeller/p16-server-setup) ecosystem
+
 Dedicated LLM inference server for text generation on a local GPU.
 
 Optimized for 16GB VRAM GPUs (RTX 4080, laptop 4090, etc.) to run large language models.
