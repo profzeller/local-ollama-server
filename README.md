@@ -113,11 +113,55 @@ print(response.json()["response"])
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OLLAMA_DEFAULT_MODEL` | Model to pull on setup | mistral:7b |
-| `OLLAMA_NUM_PARALLEL` | Concurrent requests | 2 |
+| `OLLAMA_NUM_PARALLEL` | Concurrent requests | 4 |
 | `OLLAMA_MAX_LOADED_MODELS` | Models in memory | 1 |
-| `OLLAMA_KEEP_ALIVE` | Keep model loaded (sec) | 300 |
+| `OLLAMA_KEEP_ALIVE` | Keep model loaded | 5m |
+| `OLLAMA_FLASH_ATTENTION` | Enable flash attention | 1 |
 | `OLLAMA_HOST` | Bind address | 0.0.0.0 |
 | `OLLAMA_PORT` | Port | 11434 |
+
+## Performance Tuning
+
+### Container Optimizations (Built-in)
+
+The docker-compose.yml includes these optimizations:
+
+- **`shm_size: 4g`** - Shared memory for large model tensors (prevents OOM on 13B+ models)
+- **`ulimits.nofile: 65536`** - Higher file descriptor limits for concurrent connections
+- **Flash Attention** - Faster inference on RTX 30/40 series GPUs
+
+### Tuning for Your Hardware
+
+**16GB VRAM (RTX 4080, laptop 4090):**
+```bash
+OLLAMA_NUM_PARALLEL=4
+OLLAMA_MAX_LOADED_MODELS=1
+```
+
+**24GB+ VRAM (RTX 4090 desktop, A5000):**
+```bash
+OLLAMA_NUM_PARALLEL=8
+OLLAMA_MAX_LOADED_MODELS=2
+```
+
+### Reducing Cold Start Latency
+
+Models unload after `OLLAMA_KEEP_ALIVE`. To keep models warm:
+
+```bash
+# Keep loaded for 1 hour
+OLLAMA_KEEP_ALIVE=1h
+
+# Keep loaded indefinitely (until restart)
+OLLAMA_KEEP_ALIVE=-1
+```
+
+### If You Experience OOM Errors
+
+1. Reduce parallel requests: `OLLAMA_NUM_PARALLEL=2`
+2. Use a smaller model (3B-7B instead of 9B+)
+3. Disable flash attention: `OLLAMA_FLASH_ATTENTION=0`
+4. Restart to clear VRAM: `docker compose restart`
 
 ## Management
 
